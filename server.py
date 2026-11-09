@@ -8,9 +8,10 @@ import urllib.parse
 from datetime import datetime
 
 PORT = int(os.environ.get("PORT", 8080))
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "memoria.db"))
-DIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
-SOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media_sources")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "data", "memoria.db"))
+DIST_DIR = os.path.join(BASE_DIR, "dist")
+SOURCES_DIR = os.path.join(BASE_DIR, "media_sources")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -61,37 +62,38 @@ def init_db():
     # Insert default admin user if not exists
     c.execute("INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)", ("admin", "admin"))
     
-    # Insert default sources
+    # Configure default sources
     default_sources = [
-        ("Travel to Japan 2025 October", os.path.join(SOURCES_DIR, "japan"), "travel,asia,japan"),
-        ("European Summer Tour", os.path.join(SOURCES_DIR, "paris"), "europe,france,sightseeing"),
-        ("Nature & Wildlife", os.path.join(SOURCES_DIR, "nature"), "nationalparks,hiking,wildlife"),
-        ("California Road Trip", os.path.join(SOURCES_DIR, "california"), "coast,scenic,california")
+        ("Nature & Wilderness", os.path.join(SOURCES_DIR, "nature"), "mountains,lake,waterfall,forest"),
+        ("European Summer Tour", os.path.join(SOURCES_DIR, "cities"), "europe,paris,prague,architecture"),
+        ("California Road Trip", os.path.join(SOURCES_DIR, "california"), "coast,pacific,highway1,sunset"),
+        ("Travel to Japan 2025", os.path.join(SOURCES_DIR, "japan"), "tokyo,shibuya,temple,garden")
     ]
     for album, path, tags in default_sources:
         c.execute("INSERT OR IGNORE INTO sources_config (album_name, path_location, tags) VALUES (?, ?, ?)", (album, path, tags))
     
-    # Seed media files if table empty
-    c.execute("SELECT COUNT(*) FROM media")
-    if c.fetchone()[0] == 0:
-        samples = [
-            ("japan/tokyo_tower.jpg", "Travel to Japan 2025 October", "2025-10-12 18:30:00", 35.6586, 139.7454, "Tokyo Tower illuminating the night skyline with vibrant amber colors."),
-            ("japan/kyoto_temple.jpg", "Travel to Japan 2025 October", "2025-10-14 10:15:00", 35.0394, 135.7292, "Kinkaku-ji Golden Pavilion reflecting quietly on the serene pond."),
-            ("japan/mount_fuji.jpg", "Travel to Japan 2025 October", "2025-10-16 07:00:00", 35.3606, 138.7274, "Early morning sunrise casting a purple glow over Mount Fuji peak."),
-            ("paris/eiffel_sunset.jpg", "European Summer Tour", "2025-07-04 20:45:00", 48.8584, 2.2945, "Sunset over the Champ de Mars facing the Eiffel Tower."),
-            ("paris/louvre_pyramid.jpg", "European Summer Tour", "2025-07-05 14:20:00", 48.8606, 2.3376, "Glass pyramid courtyard of the Louvre Museum on a sunny afternoon."),
-            ("nature/yosemite_valley.jpg", "Nature & Wildlife", "2025-05-20 11:30:00", 37.7456, -119.5936, "Granite cliffs of El Capitan and Half Dome in Yosemite Valley."),
-            ("nature/yellowstone_geyser.jpg", "Nature & Wildlife", "2025-06-15 15:45:00", 44.4605, -110.8281, "Old Faithful erupting steam high above the geothermal plateau."),
-            ("california/golden_gate.jpg", "California Road Trip", "2025-08-22 17:10:00", 37.8199, -122.4783, "Golden Gate Bridge shrouded in rolling Pacific fog at dusk."),
-            ("california/big_sur_coast.jpg", "California Road Trip", "2025-08-24 13:00:00", 36.3168, -121.8885, "Rugged Pacific coastline along Highway 1 at Bixby Creek Bridge."),
-            ("japan/shibuya_crossing.jpg", "Travel to Japan 2025 October", "2025-10-18 21:00:00", 35.6595, 139.7005, "Scramble crossing vibrant neon signs and pedestrian flow in Shibuya.")
-        ]
-        for rel_path, album, dt, lat, lon, caption in samples:
-            abs_path = os.path.join(SOURCES_DIR, rel_path)
-            c.execute("""
-                INSERT OR IGNORE INTO media (album_name, file_path, file_type, date_taken, latitude, longitude, caption)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (album, abs_path, "image", dt, lat, lon, caption))
+    # Reset/seed media files with real photographs (some with GPS, some without GPS)
+    c.execute("DELETE FROM media")
+    samples = [
+        ("nature/mountain_lake.jpg", "Nature & Wilderness", "2025-06-18 10:24:00", 46.5197, 8.4412, "Pristine emerald lake surrounded by majestic snow-capped alpine peaks."),
+        ("nature/waterfall_cascade.jpg", "Nature & Wilderness", "2025-06-20 14:15:30", 45.4215, -121.8947, "Lush mossy waterfall cascading through the Pacific temperate rainforest."),
+        ("nature/pine_forest.jpg", "Nature & Wilderness", "2025-06-22 08:45:10", None, None, "Misty morning sunbeams filtering through dense cedar and pine branches (No GPS)."),
+        ("nature/wilderness_peaks.jpg", "Nature & Wilderness", "2025-07-02 16:30:00", 44.4280, -110.5885, "Sweeping vistas over sprawling national park valleys and rugged crests."),
+        ("cities/european_avenue.jpg", "European Summer Tour", "2025-07-14 11:10:00", 48.8566, 2.3522, "Classic Haussmannian architecture along tree-lined Parisian avenues."),
+        ("cities/morning_cafe.jpg", "European Summer Tour", "2025-07-15 09:20:00", None, None, "Enjoying a morning espresso and warm croissants on a quaint cobblestone street (No GPS)."),
+        ("cities/historic_bridge.jpg", "European Summer Tour", "2025-07-18 19:50:00", 50.0878, 14.4205, "Gothic statues standing sentinel over historic river waters at dusk."),
+        ("california/pacific_coastline.jpg", "California Road Trip", "2025-08-05 17:40:00", 36.3168, -121.8885, "Waves crashing against dramatic ocean sea stacks along Route 1 at Big Sur."),
+        ("california/sunset_pier.jpg", "California Road Trip", "2025-08-08 20:05:00", 34.0100, -118.4962, "Golden hour reflections dancing across gentle Pacific tide ripples."),
+        ("california/coastal_coffee.jpg", "California Road Trip", "2025-08-10 10:00:00", None, None, "Freshly brewed single-origin pour-over overlooking the ocean breeze (No GPS)."),
+        ("japan/shibuya_crossing.jpg", "Travel to Japan 2025", "2025-10-12 21:15:00", 35.6595, 139.7005, "Dynamic currents of city life under dazzling neon facades in Shibuya."),
+        ("japan/shrine_garden.jpg", "Travel to Japan 2025", "2025-10-15 14:00:00", None, None, "Peaceful maple leaves sheltering moss stones beside a wooden engawa veranda (No GPS).")
+    ]
+    for rel_path, album, dt, lat, lon, caption in samples:
+        abs_path = os.path.join(SOURCES_DIR, rel_path)
+        c.execute("""
+            INSERT INTO media (album_name, file_path, file_type, date_taken, latitude, longitude, caption)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (album, abs_path, "image", dt, lat, lon, caption))
 
     conn.commit()
     conn.close()
@@ -123,6 +125,7 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
             return
+
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
@@ -307,6 +310,10 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
           <span class="text-amber-400 font-bold">POST /api/auth/login</span>
           <span class="text-zinc-400">Payload: {{ username, password }} - returns session token</span>
         </li>
+        <li class="flex items-center justify-between bg-zinc-950/60 p-2.5 rounded border border-zinc-800/80">
+          <span class="text-cyan-400 font-bold">POST /api/auth/change-credentials</span>
+          <span class="text-zinc-400">Payload: {{ current_username, current_password, new_username, new_password }}</span>
+        </li>
       </ul>
     </div>
   </div>
@@ -332,10 +339,45 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
             payload = {}
 
         if path == "/api/auth/login":
-            if payload.get("username") == "admin" and payload.get("password") == "admin":
-                self.send_json({"token": "valid-session-token"})
+            u = payload.get("username", "").strip()
+            p = payload.get("password", "")
+            conn = get_db()
+            row = conn.execute("SELECT username, password_hash FROM users WHERE username = ? AND password_hash = ?", (u, p)).fetchone()
+            conn.close()
+            if row:
+                self.send_json({"token": "valid-session-token", "username": u})
             else:
-                self.send_json({"error": "Invalid credentials"}, status=401)
+                self.send_json({"error": "Invalid username or password"}, status=401)
+            return
+
+        elif path == "/api/auth/change-credentials":
+            curr_user = payload.get("current_username", "").strip()
+            curr_pass = payload.get("current_password", "")
+            new_user = payload.get("new_username", "").strip()
+            new_pass = payload.get("new_password", "")
+
+            if not new_user or not new_pass or len(new_pass) < 4:
+                self.send_json({"error": "New username and password (min 4 characters) are required."}, status=400)
+                return
+
+            conn = get_db()
+            user_row = conn.execute("SELECT id FROM users WHERE username = ? AND password_hash = ?", (curr_user, curr_pass)).fetchone()
+            if not user_row:
+                conn.close()
+                self.send_json({"error": "Current password is incorrect."}, status=401)
+                return
+
+            # Check if new username already taken by another user
+            existing = conn.execute("SELECT id FROM users WHERE username = ? AND id != ?", (new_user, user_row["id"])).fetchone()
+            if existing:
+                conn.close()
+                self.send_json({"error": f"Username {new_user} is already in use."}, status=400)
+                return
+
+            conn.execute("UPDATE users SET username = ?, password_hash = ? WHERE id = ?", (new_user, new_pass, user_row["id"]))
+            conn.commit()
+            conn.close()
+            self.send_json({"status": "ok", "username": new_user, "message": "Credentials updated successfully."})
             return
 
         elif path == "/api/media/caption":

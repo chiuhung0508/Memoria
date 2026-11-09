@@ -26,6 +26,15 @@ struct AppState {
 }
 
 #[derive(Deserialize)]
+#[derive(Deserialize)]
+struct ChangeCredentialsRequest {
+    current_username: String,
+    current_password: String,
+    new_username: String,
+    new_password: String,
+}
+
+#[derive(Deserialize)]
 struct LoginRequest {
     username: String,
     password: String,
@@ -103,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/api/auth/login", post(login_handler))
+        .route("/api/auth/change-credentials", post(change_credentials_handler))
         .route("/api/config", get(get_configs).post(save_configs_handler))
         .route("/api/sync", post(trigger_sync_handler))
         .route("/api/media", get(list_media_handler))

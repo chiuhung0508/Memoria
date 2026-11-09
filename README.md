@@ -228,13 +228,15 @@ docker compose logs -f memoria
 
 ---
 
-### Step 4: First-Time Login & Source Sync
+### Step 4: First-Time Login & Security Hardening
 
 1. Open your browser and navigate to `http://localhost:8080`.
-2. Sign in using the default administrative credentials:
+2. Sign in using the initial setup administrative credentials:
    * **Username:** `admin`
    * **Password:** `admin`
-3. Click **⚙️ Settings** (or **Manage Sources**) in the top navigation bar:
+3. Open **⚙️ Settings** in the top navigation bar:
+   * **Update Default Credentials:** Notice the security warning banner. Enter your current password (`admin`), choose your new custom username and strong password, and click **Update Credentials**.
+   * **Configure Storage Sources:** Add local or container storage paths (e.g., `/media_sources/photos` or SMB network shares).
    * Add a source row pointing to your mounted container path (e.g., `/media_sources/photos` or SMB paths mapped into the container).
    * Click **Save Sources to Database**.
    * Click **🔄 Reload Index & Sync Database** to start the background scanner.
@@ -243,6 +245,11 @@ docker compose logs -f memoria
 ---
 
 ## 5. Feature Usage Guide
+
+### Account Security & Credential Hardening
+* The Settings page includes an **Account Security & Credentials** interface.
+* Detects when default credentials (`admin/admin`) are active and displays a security prompt banner.
+* Allows instantaneous password and username rotation directly to the SQLite `users` table without needing server restarts.
 
 ### Auto-Hiding Left Album Catalog
 * Move your mouse to the far-left screen tab (`Albums`) to expand the sidebar catalog.
