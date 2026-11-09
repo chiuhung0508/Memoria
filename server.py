@@ -115,25 +115,40 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
+        if self.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
-        if path == "/" or path == "/index.html":
-            index_path = os.path.join(DIST_DIR, "index.html")
-            if os.path.exists(index_path):
-                with open(index_path, "rb") as f:
-                    content = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(content)))
-                self.end_headers()
-                self.wfile.write(content)
-                return
-            else:
-                self.send_error(404, "Frontend dist/index.html not found")
-                return
+        # Serve static assets from DIST_DIR
+        rel_file = path.lstrip("/")
+        if rel_file == "" or rel_file == "index.html":
+            rel_file = "index.html"
+        static_target = os.path.join(DIST_DIR, rel_file)
+        if os.path.exists(static_target) and os.path.isfile(static_target):
+            mime = "text/html; charset=utf-8"
+            if static_target.endswith(".css"):
+                mime = "text/css"
+            elif static_target.endswith((".js", ".mjs")):
+                mime = "application/javascript"
+            elif static_target.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                mime = "image/" + static_target.split(".")[-1]
+            with open(static_target, "rb") as f:
+                content = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Cache-Control", "public, max-age=3600")
+            self.end_headers()
+            self.wfile.write(content)
+            return
 
         elif path == "/api/media/albums":
             conn = get_db()
@@ -236,7 +251,11 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
 <head>
   <meta charset="UTF-8">
   <title>Media Vault - Backend Diagnostics</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/vendor/tailwind.css" />
+  <style>
+    body {{ background-color: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+    .card {{ background-color: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; }}
+  </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen p-8">
   <div class="max-w-4xl mx-auto space-y-6">
@@ -364,10 +383,12 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
 
         self.send_error(404, "Endpoint not found")
 
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
 if __name__ == "__main__":
     init_db()
-    server = socketserver.TCPServer(("", PORT), MediaVaultHandler)
-    server.allow_reuse_address = True
+    server = ReusableTCPServer(("", PORT), MediaVaultHandler)
     print(f"Media Vault server running at http://localhost:{PORT}")
     try:
         server.serve_forever()

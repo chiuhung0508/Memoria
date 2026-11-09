@@ -71,9 +71,9 @@ A self-hosted, browser-based media vault engineered to index and browse local ph
 | :---: | :---: |
 | ![Settings Modal](screenshots/03_frontend_settings_modal.png) | ![3D Globe](screenshots/04_frontend_globe_3d.png) |
 
-| 5. Backend Diagnostics & Metrics Dashboard |
-| :---: |
-| ![Backend Diagnostics](screenshots/05_backend_diagnostics_page.png) |
+| 5. PhotoSwipe Lightbox & Dynamic Caption Editor | 6. Backend Diagnostics Dashboard |
+| :---: | :---: |
+| ![PhotoSwipe Lightbox](screenshots/06_frontend_photoswipe_lightbox.png) | ![Backend Diagnostics](screenshots/05_backend_diagnostics_page.png) |
 
 ## 2. Repository File Layout
 

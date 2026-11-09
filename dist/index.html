@@ -4,14 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Local Media Vault</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- PhotoSwipe 5 Core CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/photoswipe@5.4.3/dist/photoswipe.css" />
-
-  <!-- MapLibre GL JS for 3D Globe -->
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <!-- Local Bundled Styles -->
+  <link rel="stylesheet" href="/vendor/tailwind.css" />
+  <link rel="stylesheet" href="/vendor/photoswipe.css" />
+  <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
 
   <style>
     :root[data-theme="dark"] {
@@ -287,8 +283,10 @@
 
   <!-- PhotoSwipe Module Setup -->
   <script type="module">
-    import PhotoSwipe from 'https://unpkg.com/photoswipe@5.4.3/dist/photoswipe.esm.js';
+    import PhotoSwipe from '/vendor/photoswipe.esm.js';
+    import * as maplibregl from '/vendor/maplibre-gl.mjs';
     window.PhotoSwipe = PhotoSwipe;
+    window.maplibregl = maplibregl;
   </script>
 
   <script>
@@ -518,12 +516,19 @@
       if (map) return;
       map = new maplibregl.Map({
         container: 'map-container',
-        style: 'https://demotiles.maplibre.org/style.json',
+        style: {
+          version: 8,
+          sources: {},
+          layers: [
+            { id: 'bg', type: 'background', paint: { 'background-color': '#0c1222' } }
+          ]
+        },
         center: [138.2529, 36.2048],
         zoom: 2.2,
         projection: 'globe'
       });
       map.on('load', renderGlobePins);
+      setTimeout(renderGlobePins, 500);
     }
 
     function renderGlobePins() {
