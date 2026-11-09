@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local Media Vault</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PhotoSwipe 5 Core CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/photoswipe@5.4.3/dist/photoswipe.css" />
+
+  <!-- MapLibre GL JS for 3D Globe -->
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+  <style>
+    :root[data-theme="dark"] {
+      --bg-main: #09090b;
+      --bg-panel: #18181b;
+      --bg-input: #27272a;
+      --border-color: #3f3f46;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --accent: #3b82f6;
+      --card-bg: #121215;
+    }
+    :root[data-theme="light"] {
+      --bg-main: #ffffff;
+      --bg-panel: #f8fafc;
+      --bg-input: #ffffff;
+      --border-color: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent: #f97316;
+      --card-bg: #f1f5f9;
+    }
+    :root[data-theme="modern"] {
+      --bg-main: #0b0f19;
+      --bg-panel: #111827;
+      --bg-input: #1f2937;
+      --border-color: #374151;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --accent: #6366f1;
+      --card-bg: #111827;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+    }
+
+    select, select option {
+      background-color: var(--bg-panel) !important;
+      color: var(--text-main) !important;
+    }
+
+    /* Elastic Search Box: Min width 20px */
+    .elastic-search-box {
+      min-width: 20px !important;
+      transition: width 0.2s ease;
+    }
+
+    /* Auto-hide Sidebar */
+    #sidebar {
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(calc(-100% + 24px));
+    }
+    #sidebar:hover, #sidebar.expanded {
+      transform: translateX(0);
+    }
+
+    /* 3D Globe Pins */
+    .globe-marker-pin {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      object-fit: cover;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .globe-marker-pin:hover {
+      transform: scale(1.25) translateY(-4px);
+      border-color: var(--accent);
+      z-index: 50;
+    }
+
+    /* Caption Window */
+    .caption-placement-bottom {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      max-width: calc(100vw - 48px);
+      border-radius: 16px;
+    }
+    .caption-placement-right {
+      position: absolute;
+      top: 60px;
+      right: 74px;
+      bottom: 24px;
+      width: 340px;
+      max-width: calc(100vw - 120px);
+      border-radius: 16px;
+    }
+    .caption-placement-left {
+      position: absolute;
+      top: 60px;
+      left: 74px;
+      bottom: 24px;
+      width: 340px;
+      max-width: calc(100vw - 120px);
+      border-radius: 16px;
+    }
+
+    .custom-pswp-caption {
+      background: rgba(18, 18, 22, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      z-index: 999;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.65);
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden text-xs select-none">
+
+  <!-- AUTHENTICATION GATE -->
+  <div id="login-modal" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div style="background-color: var(--bg-panel); border-color: var(--border-color);" class="border p-8 rounded-2xl w-80 shadow-2xl">
+      <h2 class="text-base font-bold text-center mb-1">Media Vault Access</h2>
+      <p class="text-[11px] text-zinc-400 mb-5 text-center">Default: <code class="text-blue-400 font-mono">admin / admin</code></p>
+      
+      <div class="space-y-3">
+        <input id="login-user" type="text" value="admin" style="background-color: var(--bg-input); border-color: var(--border-color);" class="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none" />
+        <input id="login-pass" type="password" value="admin" style="background-color: var(--bg-input); border-color: var(--border-color);" class="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none" />
+        <button onclick="performLogin()" class="w-full mt-2 bg-blue-600 hover:bg-blue-500 py-2.5 rounded-lg font-semibold transition text-white text-xs">Sign In</button>
+      </div>
+      <p id="login-error" class="text-rose-500 text-[11px] mt-3 hidden text-center">Invalid credentials</p>
+    </div>
+  </div>
+
+  <!-- AUTO-HIDE SIDEBAR -->
+  <aside id="sidebar" style="background-color: var(--bg-panel); border-color: var(--border-color);" class="fixed top-0 bottom-0 left-0 w-72 border-r z-40 flex shadow-2xl backdrop-blur">
+    <div class="flex-1 flex flex-col p-4 overflow-hidden">
+      <div style="border-color: var(--border-color);" class="pb-3 border-b flex items-center justify-between">
+        <span class="font-bold text-sm tracking-wide">Album Catalog</span>
+        <button id="sort-toggle-btn" onclick="cycleAlbumSort()" style="background-color: var(--bg-input); border-color: var(--border-color);" class="text-[10px] px-2 py-0.5 rounded border text-blue-400">📅 Date ↑</button>
+      </div>
+      <div class="mt-2.5 mb-2">
+        <input id="folder-filter-input" type="text" placeholder="Filter folders..." oninput="handleFolderSearch(this.value)" style="background-color: var(--bg-input); border-color: var(--border-color);" class="w-full border rounded-lg px-2.5 py-1 text-[11px] focus:outline-none" />
+      </div>
+      <div class="flex-1 overflow-y-auto space-y-4">
+        <div id="sidebar-albums-list" class="space-y-1"></div>
+      </div>
+    </div>
+    <div style="background-color: var(--border-color);" class="w-[24px] flex items-center justify-center cursor-pointer">
+      <span class="rotate-90 text-[10px] tracking-widest uppercase font-semibold text-zinc-400">Albums</span>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEW WRAPPER -->
+  <div class="flex-1 flex flex-col ml-[24px] h-screen overflow-hidden">
+    <!-- TOP NAVIGATION -->
+    <header style="background-color: var(--bg-panel); border-color: var(--border-color);" class="h-16 border-b px-6 flex items-center justify-between z-20 gap-3">
+      <div class="flex items-center gap-3 shrink-0">
+        <h1 class="text-sm font-bold flex items-center gap-2"><span>📸</span> Media Vault</h1>
+        <div style="background-color: var(--bg-input); border-color: var(--border-color);" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border">
+          <span class="text-zinc-400 text-[10px]">Album:</span>
+          <span id="active-album-title" class="font-bold text-blue-500 truncate max-w-[140px]">All Media</span>
+        </div>
+
+        <!-- AUTO-HIDE DATE FILTER TRIGGER -->
+        <div class="relative">
+          <button id="btn-date-toggle" onclick="toggleDatePopover()" style="background-color: var(--bg-input); border-color: var(--border-color);" class="flex items-center gap-1.5 border px-2.5 py-1.5 rounded-lg hover:border-blue-500 transition">
+            <span>📅</span>
+            <span class="text-[11px] font-medium">Date</span>
+          </button>
+
+          <!-- Floating Date Popover -->
+          <div id="date-popover" style="background-color: var(--bg-panel); border-color: var(--border-color);" class="hidden absolute top-10 left-0 border rounded-xl p-3 shadow-2xl z-50 flex items-center gap-2">
+            <input id="date-from" type="date" class="bg-transparent border border-zinc-700 rounded px-2 py-1 text-[11px] focus:outline-none" onchange="applyFiltersAndPaging(0)" />
+            <span class="text-zinc-500">-</span>
+            <input id="date-to" type="date" class="bg-transparent border border-zinc-700 rounded px-2 py-1 text-[11px] focus:outline-none" onchange="applyFiltersAndPaging(0)" />
+            <button onclick="resetDateFilter()" class="text-zinc-400 hover:text-red-500 font-bold px-1">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIDDLE SEARCH BOX (MIN-WIDTH: 20px) -->
+      <div class="flex-1 max-w-md mx-2 elastic-search-box flex items-center">
+        <div style="background-color: var(--bg-input); border-color: var(--border-color);" class="w-full flex items-center border rounded-xl px-3 py-1.5 shadow-inner">
+          <span class="text-zinc-400 mr-2 shrink-0">🔍</span>
+          <input id="global-search-input" type="text" placeholder="Search..." oninput="handleGlobalSearch(this.value)" class="w-full bg-transparent focus:outline-none text-xs placeholder-zinc-500 min-w-0" />
+          <button id="clear-search-btn" onclick="clearGlobalSearch()" class="hidden text-zinc-400 hover:text-red-500 text-xs ml-1">✕</button>
+        </div>
+      </div>
+
+      <!-- RIGHT CONTROLS -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div style="background-color: var(--bg-input); border-color: var(--border-color);" class="flex items-center gap-1 border px-2 py-1 rounded-lg">
+          <span class="text-[10px] text-zinc-400 font-semibold uppercase">Theme:</span>
+          <select id="theme-selector" onchange="changeTheme(this.value)" class="bg-transparent focus:outline-none text-xs font-medium cursor-pointer">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="modern">Modern</option>
+          </select>
+        </div>
+
+        <div style="background-color: var(--bg-input); border-color: var(--border-color);" class="flex items-center gap-2 border px-2.5 py-1 rounded-lg">
+          <span class="text-zinc-400 text-[10px]">Cols:</span>
+          <input id="grid-zoom-slider" type="range" min="3" max="10" value="6" oninput="changeGridZoom(this.value)" class="w-16 accent-blue-500 cursor-pointer" />
+          <span id="zoom-val-label" class="text-zinc-400 text-[10px] w-3">6</span>
+        </div>
+
+        <div style="background-color: var(--bg-input); border-color: var(--border-color);" class="flex border p-0.5 rounded-lg">
+          <button id="btn-grid" onclick="switchView('grid')" class="px-2.5 py-1 bg-blue-600 text-white font-medium rounded shadow">Grid</button>
+          <button id="btn-globe" onclick="switchView('globe')" class="px-2.5 py-1 text-zinc-400 hover:text-white">Globe</button>
+        </div>
+
+        <button onclick="openSettingsPage()" style="background-color: var(--bg-input); border-color: var(--border-color);" class="border px-3 py-1.5 rounded-lg font-medium hover:border-blue-500 transition">
+          ⚙️ Settings
+        </button>
+
+        <button onclick="logout()" class="text-zinc-400 hover:text-red-500 text-xs">Logout</button>
+      </div>
+    </header>
+
+    <!-- CONTENT VIEW -->
+    <main class="flex-1 overflow-hidden relative">
+      <div id="view-grid" class="h-full overflow-y-auto p-6">
+        <div id="media-grid" class="grid grid-cols-6 gap-3"></div>
+      </div>
+
+      <div id="view-globe" class="h-full w-full hidden">
+        <div id="map-container" class="h-full w-full"></div>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer style="background-color: var(--bg-panel); border-color: var(--border-color);" class="h-12 border-t px-6 flex items-center justify-between z-20">
+      <div class="flex items-center gap-3">
+        <span class="text-zinc-400">Items per page:</span>
+        <select id="items-per-page" onchange="changeLimit(this.value)" style="background-color: var(--bg-input); border-color: var(--border-color);" class="border rounded px-2 py-0.5 text-xs">
+          <option value="40" selected>40</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+        <span id="paging-summary-label" class="text-zinc-400 ml-3">Showing 0 of 0</span>
+      </div>
+      <div class="flex items-center gap-2" id="pagination-nav"></div>
+    </footer>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-page" style="background-color: var(--bg-main);" class="fixed inset-0 z-50 hidden flex-col overflow-y-auto p-8">
+    <div class="max-w-4xl w-full mx-auto space-y-6">
+      <div style="border-color: var(--border-color);" class="flex items-center justify-between pb-4 border-b">
+        <div>
+          <h2 class="text-xl font-bold">⚙️ Media Vault Settings</h2>
+          <p class="text-zinc-400 text-xs">Configure source directories, database indexes, and lightbox behavior.</p>
+        </div>
+        <button onclick="closeSettingsPage()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition text-xs shadow-md">✕ Close</button>
+      </div>
+
+      <section style="background-color: var(--bg-panel); border-color: var(--border-color);" class="p-6 rounded-2xl border space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold">Source Directories & SMB Shares</h3>
+          <button onclick="addNewSourceRow()" class="px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white rounded-lg transition text-xs font-semibold">+ Add Path</button>
+        </div>
+        <div class="space-y-2" id="source-paths-list"></div>
+        <button onclick="saveSourcesConfig()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs transition">Save Sources</button>
+      </section>
+
+      <section style="background-color: var(--bg-panel); border-color: var(--border-color);" class="p-6 rounded-2xl border space-y-3">
+        <h3 class="text-sm font-bold">Reload Media Index</h3>
+        <button onclick="triggerDatabaseReindex()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition">🔄 Reload Index & Sync Database</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- PhotoSwipe Module Setup -->
+  <script type="module">
+    import PhotoSwipe from 'https://unpkg.com/photoswipe@5.4.3/dist/photoswipe.esm.js';
+    window.PhotoSwipe = PhotoSwipe;
+  </script>
+
+  <script>
+    let mediaItems = [];
+    let currentAlbum = null;
+    let limit = 40;
+    let offset = 0;
+    let totalItems = 0;
+    let map = null;
+    let markers = [];
+    let searchQuery = "";
+    let folderSearchQuery = "";
+    let currentSortMode = 'date_asc';
+    let isCaptionWindowVisible = false;
+    let activeLightboxInstance = null;
+    let slideshowInterval = null;
+
+    let sourceConfigurations = [
+      { id: 1, name: "Japan Travel", path: "/media_sources/photos" }
+    ];
+
+    function toggleDatePopover() {
+      const popover = document.getElementById('date-popover');
+      popover.classList.toggle('hidden');
+    }
+
+    function resetDateFilter() {
+      document.getElementById('date-from').value = '';
+      document.getElementById('date-to').value = '';
+      applyFiltersAndPaging(0);
+      document.getElementById('date-popover').classList.add('hidden');
+    }
+
+    function changeTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+    }
+
+    function performLogin() {
+      const u = document.getElementById('login-user').value;
+      const p = document.getElementById('login-pass').value;
+      if (u === 'admin' && p === 'admin') {
+        document.getElementById('login-modal').classList.add('hidden');
+        sessionStorage.setItem('auth', 'true');
+        loadAlbums();
+        applyFiltersAndPaging(0);
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem('auth');
+      document.getElementById('login-modal').classList.remove('hidden');
+    }
+
+    async function loadAlbums() {
+      try {
+        const res = await fetch('/api/media/albums');
+        const albums = await res.json();
+        const container = document.getElementById('sidebar-albums-list');
+        container.innerHTML = `
+          <button onclick="selectAlbum(null)" class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800/40 transition">📂 All Items</button>
+        ` + albums.map(a => `
+          <button onclick="selectAlbum('${a}')" class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800/40 transition truncate">📁 ${a}</button>
+        `).join('');
+      } catch (err) {}
+    }
+
+    function selectAlbum(album) {
+      currentAlbum = album;
+      document.getElementById('active-album-title').innerText = album || 'All Media';
+      applyFiltersAndPaging(0);
+    }
+
+    async function applyFiltersAndPaging(newOffset = 0) {
+      offset = newOffset;
+      const from = document.getElementById('date-from').value;
+      const to = document.getElementById('date-to').value;
+
+      let url = `/api/media?limit=${limit}&offset=${offset}&`;
+      if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
+      if (from) url += `date_from=${from}&`;
+      if (to) url += `date_to=${to}&`;
+      if (currentAlbum) url += `album=${encodeURIComponent(currentAlbum)}&`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        mediaItems = data.items;
+        totalItems = data.total;
+        renderGrid();
+        renderPagination();
+        if (map) renderGlobePins();
+      } catch (e) {}
+    }
+
+    function renderGrid() {
+      const container = document.getElementById('media-grid');
+      container.innerHTML = mediaItems.map((item, idx) => `
+        <div style="background-color: var(--card-bg); border-color: var(--border-color);" 
+             class="group relative aspect-square rounded-xl overflow-hidden border hover:border-blue-500 transition duration-200 cursor-pointer shadow-sm"
+             onclick="openPhotoViewer(${idx})">
+          <img src="/api/stream/file/${item.id}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent opacity-0 group-hover:opacity-100 transition p-2.5 flex flex-col justify-end text-white">
+            <span class="font-semibold truncate text-[11px]">${item.album_name}</span>
+            <span class="text-[9px] text-zinc-300">${item.date_taken || ''}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPagination() {
+      document.getElementById('paging-summary-label').innerText = `Total: ${totalItems}`;
+      const totalPages = Math.ceil(totalItems / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const nav = document.getElementById('pagination-nav');
+
+      nav.innerHTML = `
+        <button ${currentPage <= 1 ? 'disabled' : ''} onclick="applyFiltersAndPaging(${(currentPage - 2) * limit})"
+                class="px-2.5 py-1 border rounded disabled:opacity-30">Prev</button>
+        <span class="text-zinc-400 text-[11px] px-1">Page ${currentPage} of ${totalPages || 1}</span>
+        <button ${currentPage >= totalPages ? 'disabled' : ''} onclick="applyFiltersAndPaging(${currentPage * limit})"
+                class="px-2.5 py-1 border rounded disabled:opacity-30">Next</button>
+      `;
+    }
+
+    function changeGridZoom(cols) {
+      document.getElementById('zoom-val-label').innerText = cols;
+      document.getElementById('media-grid').className = `grid grid-cols-${cols} gap-3`;
+    }
+
+    function handleGlobalSearch(val) {
+      searchQuery = val.trim();
+      document.getElementById('clear-search-btn').classList.toggle('hidden', searchQuery.length === 0);
+      applyFiltersAndPaging(0);
+    }
+
+    function clearGlobalSearch() {
+      document.getElementById('global-search-input').value = '';
+      searchQuery = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      applyFiltersAndPaging(0);
+    }
+
+    function openPhotoViewer(index) {
+      const pswpItems = mediaItems.map(m => ({
+        src: `/api/stream/file/${m.id}`,
+        width: 1600,
+        height: 1000,
+        id: m.id,
+        album: m.album_name,
+        caption: m.caption || ''
+      }));
+
+      const pswp = new window.PhotoSwipe({
+        dataSource: pswpItems,
+        index: index,
+        bgOpacity: 0.94
+      });
+
+      activeLightboxInstance = pswp;
+
+      pswp.on('uiRegister', function() {
+        pswp.ui.registerElement({
+          name: 'caption-toggle-button',
+          order: 7,
+          isButton: true,
+          html: `<span class="text-base">💬</span>`,
+          onClick: () => {
+            isCaptionWindowVisible = !isCaptionWindowVisible;
+            const p = document.querySelector('.custom-pswp-caption');
+            if (p) p.style.display = isCaptionWindowVisible ? 'flex' : 'none';
+          }
+        });
+
+        pswp.ui.registerElement({
+          name: 'custom-caption-panel',
+          order: 9,
+          appendTo: 'root',
+          onInit: (el, pswp) => {
+            el.className = 'custom-pswp-caption caption-placement-bottom';
+            el.style.display = 'none';
+
+            const update = () => {
+              const d = pswp.currSlide.data;
+              el.innerHTML = `
+                <div class="flex items-center justify-between border-b border-zinc-700/60 pb-2">
+                  <span class="text-[10px] text-blue-400 font-mono">${d.album}</span>
+                  <button onclick="saveLightboxCaption(${d.id})" class="text-[10px] text-emerald-400 font-bold">Save</button>
+                </div>
+                <textarea id="caption-edit-${d.id}" rows="2" class="w-full bg-zinc-950 border border-zinc-700 rounded p-1 text-xs text-zinc-100 mt-2">${d.caption}</textarea>
+              `;
+            };
+            pswp.on('change', update);
+          }
+        });
+      });
+
+      pswp.init();
+    }
+
+    async function saveLightboxCaption(id) {
+      const text = document.getElementById(`caption-edit-${id}`).value;
+      await fetch('/api/media/caption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, caption: text })
+      });
+      alert('Caption updated!');
+    }
+
+    function switchView(view) {
+      const g = document.getElementById('view-grid');
+      const m = document.getElementById('view-globe');
+      if (view === 'grid') {
+        g.classList.remove('hidden');
+        m.classList.add('hidden');
+      } else {
+        g.classList.add('hidden');
+        m.classList.remove('hidden');
+        initGlobe();
+      }
+    }
+
+    function initGlobe() {
+      if (map) return;
+      map = new maplibregl.Map({
+        container: 'map-container',
+        style: 'https://demotiles.maplibre.org/style.json',
+        center: [138.2529, 36.2048],
+        zoom: 2.2,
+        projection: 'globe'
+      });
+      map.on('load', renderGlobePins);
+    }
+
+    function renderGlobePins() {
+      markers.forEach(m => m.remove());
+      markers = [];
+      mediaItems.filter(i => i.latitude && i.longitude).forEach((i, idx) => {
+        const el = document.createElement('img');
+        el.src = `/api/stream/file/${i.id}`;
+        el.className = 'globe-marker-pin';
+        el.addEventListener('click', () => openPhotoViewer(idx));
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([i.longitude, i.latitude])
+          .addTo(map);
+        markers.push(marker);
+      });
+    }
+
+    function openSettingsPage() {
+      document.getElementById('settings-page').classList.remove('hidden');
+      document.getElementById('settings-page').classList.add('flex');
+      renderSettings();
+    }
+
+    function closeSettingsPage() {
+      document.getElementById('settings-page').classList.add('hidden');
+      document.getElementById('settings-page').classList.remove('flex');
+    }
+
+    function renderSettings() {
+      const c = document.getElementById('source-paths-list');
+      c.innerHTML = sourceConfigurations.map((s, idx) => `
+        <div class="flex gap-2">
+          <input type="text" value="${s.name}" class="border rounded p-1 text-xs bg-transparent flex-1" />
+          <input type="text" value="${s.path}" class="border rounded p-1 text-xs bg-transparent flex-1" />
+        </div>
+      `).join('');
+    }
+
+    function addNewSourceRow() {
+      sourceConfigurations.push({ id: Date.now(), name: "New Folder", path: "/media_sources/photos" });
+      renderSettings();
+    }
+
+    async function saveSourcesConfig() {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sourceConfigurations.map(s => ({
+          album_name: s.name,
+          path_location: s.path
+        })))
+      });
+      alert('Sources saved!');
+    }
+
+    async function triggerDatabaseReindex() {
+      await fetch('/api/sync', { method: 'POST' });
+      alert('Sync dispatched! Refresh in a few seconds.');
+    }
+
+    if (sessionStorage.getItem('auth')) {
+      document.getElementById('login-modal').classList.add('hidden');
+      loadAlbums();
+      applyFiltersAndPaging(0);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  media_vault:
+    build: .
+    container_name: media_vault
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent database and daily zip logs
+      - ./data:/data
+      # Mount your local photos/videos directory (read-only)
+      - ./local_media:/media_sources/photos:ro
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
