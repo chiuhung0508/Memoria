@@ -1,16 +1,17 @@
 version: '3.8'
 
 services:
-  media_vault:
+  memoria:
     build: .
-    container_name: media_vault
+    container_name: memoria
     ports:
       - "8080:8080"
     volumes:
-      # Persistent database and daily zip logs
+      # Persistent SQLite DB and archived activity logs
       - ./data:/data
-      # Mount your local photos/videos directory (read-only)
-      - ./local_media:/media_sources/photos:ro
+      # Read-only bind mounts to your local photo/video storage folders
+      - ./media_sources:/media_sources:ro
     environment:
+      - DATABASE_URL=sqlite:///data/memoria.db?mode=rwc
       - RUST_LOG=info
     restart: unless-stopped

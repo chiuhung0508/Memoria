@@ -1,4 +1,4 @@
-# Media Vault: Self-Hosted Local Photo & Video Web Viewer
+# Memoria: Self-Hosted Local Photo & Video Web Viewer
 
 A self-hosted, browser-based media vault engineered to index and browse local photos and video shares. Features virtualized grid rendering, multi-theme styling, dynamic PhotoSwipe dynamic-caption inspection, interactive MapLibre 3D globe visualization via EXIF coordinates, and automated background media synchronization to an embedded SQLite database.
 
@@ -78,7 +78,7 @@ A self-hosted, browser-based media vault engineered to index and browse local ph
 ## 2. Repository File Layout
 
 ```text
-media-vault/
+memoria/
 ├── Cargo.toml                # Rust dependencies & build specifications
 ├── Dockerfile                # Multi-stage container build with FFmpeg & SQLite
 ├── docker-compose.yml        # Service orchestration & volume bind mounts
@@ -167,8 +167,8 @@ CREATE INDEX IF NOT EXISTS idx_media_geo ON media(latitude, longitude) WHERE lat
 Create the project folder structure on your host machine:
 
 ```bash
-mkdir -p media-vault/src media-vault/dist media-vault/data
-cd media-vault
+mkdir -p memoria/src memoria/dist memoria/data
+cd memoria
 ```
 
 ---
@@ -181,9 +181,9 @@ Open `docker-compose.yml` and adapt your host storage paths:
 version: '3.8'
 
 services:
-  media_vault:
+  memoria:
     build: .
-    container_name: media_vault
+    container_name: memoria
     ports:
       - "8080:8080"
     volumes:
@@ -223,7 +223,7 @@ Verify service operation:
 
 ```bash
 docker compose ps
-docker compose logs -f media_vault
+docker compose logs -f memoria
 ```
 
 ---

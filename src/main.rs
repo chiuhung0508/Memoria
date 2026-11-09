@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db = SqlitePoolOptions::new()
         .max_connections(10)
-        .connect("sqlite:/data/media_vault.db?mode=rwc")
+        .connect("sqlite:/data/memoria.db?mode=rwc")
         .await?;
 
     // Enable WAL mode for high concurrency
@@ -113,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    println!("Media Vault Backend listening at http://{}", addr);
+    println!("Memoria Backend listening at http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -349,8 +349,8 @@ fn spawn_daily_log_archiver(log_dir: PathBuf) {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
             let yesterday = (Local::now() - chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
-            let log_file_name = format!("photoviewer-{}.log", yesterday);
-            let zip_file_name = format!("photoviewer-{}.zip", yesterday);
+            let log_file_name = format!("memoria-{}.log", yesterday);
+            let zip_file_name = format!("memoria-{}.zip", yesterday);
 
             let log_path = log_dir.join(&log_file_name);
             let zip_path = log_dir.join(&zip_file_name);

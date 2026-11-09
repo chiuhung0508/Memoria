@@ -8,7 +8,7 @@ import urllib.parse
 from datetime import datetime
 
 PORT = int(os.environ.get("PORT", 8080))
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "vault.db"))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "memoria.db"))
 DIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
 SOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media_sources")
 
@@ -250,7 +250,7 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Media Vault - Backend Diagnostics</title>
+  <title>Memoria - Backend Diagnostics</title>
   <link rel="stylesheet" href="/vendor/tailwind.css" />
   <style>
     body {{ background-color: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
@@ -262,7 +262,7 @@ class MediaVaultHandler(http.server.SimpleHTTPRequestHandler):
     <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
       <div>
         <h1 class="text-2xl font-bold flex items-center gap-2">
-          <span class="text-blue-500">🛡️</span> Media Vault Backend Service
+          <span class="text-blue-500">🛡️</span> Memoria Backend Service
         </h1>
         <p class="text-xs text-zinc-400 mt-1">Status: Active & Operational (SQLite WAL Mode)</p>
       </div>
@@ -389,7 +389,7 @@ class ReusableTCPServer(socketserver.TCPServer):
 if __name__ == "__main__":
     init_db()
     server = ReusableTCPServer(("", PORT), MediaVaultHandler)
-    print(f"Media Vault server running at http://localhost:{PORT}")
+    print(f"Memoria server running at http://localhost:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

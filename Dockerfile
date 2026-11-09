@@ -1,23 +1,20 @@
 # Stage 1: Build the backend binary
-FROM rust:1.80-bullseye AS builder
+FROM rust:1.77-slim-bookworm AS builder
 WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release
+RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
 COPY src ./src
-RUN cargo build --release
+RUN touch src/main.rs && cargo build --release
 
-# Stage 2: Runtime environment
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    libsqlite3-0 \
-    zip \
-    && rm -rf /var/lib/apt/lists/*
-
+# Stage 2: Minimal runtime image
+FROM debian:bookworm-slim
 WORKDIR /app
-COPY --from=builder /app/target/release/media_vault /app/media_vault
+RUN apt-get update && apt-get install -y ca-certificates ffmpeg sqlite3 && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/memoria /app/memoria
 COPY dist /app/dist
-
-VOLUME ["/data", "/media_sources"]
+RUN mkdir -p /data /media_sources
 EXPOSE 8080
-CMD ["/app/media_vault"]
+ENV DATABASE_URL="sqlite:///data/memoria.db?mode=rwc"
+ENV RUST_LOG="info"
+CMD ["/app/memoria"]
